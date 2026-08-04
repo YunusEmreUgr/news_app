@@ -18,6 +18,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  
+  bool _gdprAccepted = false;
+  bool _marketingAccepted = false;
 
   @override
   void dispose() {
@@ -149,6 +152,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (val.length < 6) return 'Şifre en az 6 karakter olmalı';
                     return null;
                   },
+                ),
+                const SizedBox(height: 14),
+                FormField<bool>(
+                  initialValue: _gdprAccepted,
+                  validator: (val) {
+                    if (val != true) return 'Devam etmek için kullanım koşullarını kabul etmelisiniz';
+                    return null;
+                  },
+                  builder: (state) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Checkbox(
+                              value: _gdprAccepted,
+                              activeColor: const Color(0xFFEF4444),
+                              checkColor: Colors.white,
+                              onChanged: (v) {
+                                setState(() {
+                                  _gdprAccepted = v ?? false;
+                                  state.didChange(v);
+                                });
+                              },
+                            ),
+                            const Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  'Kullanım Koşulları ve Gizlilik Sözleşmesi\'ni okudum, kabul ediyorum. (KVKK/GDPR)',
+                                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (state.hasError)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 14, top: 4),
+                            child: Text(
+                              state.errorText ?? '',
+                              style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _marketingAccepted,
+                      activeColor: const Color(0xFFEF4444),
+                      checkColor: Colors.white,
+                      onChanged: (v) {
+                        setState(() {
+                          _marketingAccepted = v ?? false;
+                        });
+                      },
+                    ),
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'Kampanya, bülten ve editoryal özet e-postaları almak istiyorum. (Opsiyonel)',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 CustomButton(

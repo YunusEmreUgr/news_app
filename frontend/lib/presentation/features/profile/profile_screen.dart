@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../providers/auth_provider.dart';
@@ -14,6 +15,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  String _biography = 'Haberim uygulamasında tarafsız haberlerin sadık takipçisi.';
+
   @override
   void initState() {
     super.initState();
@@ -22,7 +25,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (authProvider.isAuthenticated) {
         context.read<UserProvider>().fetchProfile();
       }
+      _loadBiography();
     });
+  }
+
+  Future<void> _loadBiography() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _biography = prefs.getString('user_biography') ?? 'Haberim uygulamasında tarafsız haberlerin sadık takipçisi.';
+      });
+    }
+  }
+
+  Future<void> _saveBiography(String bio) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_biography', bio);
+    if (mounted) {
+      setState(() {
+        _biography = bio;
+      });
+    }
+  }
+
+  void _showEditBioDialog(BuildContext context) {
+    final bioController = TextEditingController(text: _biography);
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: const Text('Biyografiyi Düzenle', style: TextStyle(color: Colors.white)),
+          content: TextField(
+            controller: bioController,
+            style: const TextStyle(color: Colors.white),
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Kendinizden bahsedin...',
+              hintStyle: TextStyle(color: Colors.white38),
+              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.white10)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Color(0xFFEF4444))),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('İptal', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+              onPressed: () async {
+                await _saveBiography(bioController.text.trim());
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: const Text('Kaydet', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showChangePasswordDialog(BuildContext context) {
@@ -96,6 +159,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showDeleteAccountDialog(BuildContext context) {
+    final authProvider = context.read<AuthProvider>();
+    final userProvider = context.read<UserProvider>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1E293B),
+          title: const Text('Hesabınızı Silmek İstediğinize Emin Misiniz?', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          content: const Text(
+            'Bu işlem geri alınamaz. KVKK/GDPR "Unutulma Hakkı" kapsamında tüm verileriniz silinecektir. Lütfen onaylayın.',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Vazgeç', style: TextStyle(color: Colors.white54)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+              onPressed: () async {
+                final success = await userProvider.deleteAccount();
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                  if (success) {
+                    await authProvider.logout();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Hesabınız ve tüm verileriniz başarıyla silindi.')),
+                      );
+                    }
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(userProvider.errorMessage ?? 'Hesap silinirken hata oluştu.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text('Evet, Sil', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -152,14 +267,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    Text(
-                      profile != null ? '${profile.firstName} ${profile.lastName}' : 'Haberim Okuru',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          profile != null ? '${profile.firstName} ${profile.lastName}' : 'Haberim Okuru',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (authProvider.canPublish || (profile?.email == 'admin@template.com'))
+                          const Padding(
+                            padding: EdgeInsets.only(left: 6.0),
+                            child: Icon(Icons.verified, color: Color(0xFF38BDF8), size: 20),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -167,7 +292,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.white54, fontSize: 13),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 12),
+                    
+                    // Biography Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Column(
+                        children: [
+                          Text(
+                            _biography,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic, height: 1.4),
+                          ),
+                          const SizedBox(height: 4),
+                          TextButton.icon(
+                            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                            onPressed: () => _showEditBioDialog(context),
+                            icon: const Icon(Icons.edit_outlined, size: 14, color: Color(0xFF38BDF8)),
+                            label: const Text('Biyografiyi Düzenle', style: TextStyle(fontSize: 11, color: Color(0xFF38BDF8))),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Gamification & Statistics Card
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.emoji_events_outlined, color: Color(0xFFF59E0B), size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Okuma İstatistikleri & Seviye',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatColumn('Okunan Haber', '24'),
+                              _buildStatColumn('Okur Puanı', '240 XP'),
+                              _buildStatColumn('Seviye', 'Sadık Okur 🏆'),
+                            ],
+                          ),
+                          const Divider(color: Colors.white10, height: 24),
+                          const Text(
+                            'Kazanılan Rozetler',
+                            style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: const [
+                              Chip(
+                                labelPadding: EdgeInsets.zero,
+                                avatar: CircleAvatar(backgroundColor: Colors.transparent, child: Text('💬')),
+                                label: Text('İlk Yorum', style: TextStyle(fontSize: 10, color: Colors.white)),
+                                backgroundColor: Color(0xFF0F172A),
+                              ),
+                              Chip(
+                                labelPadding: EdgeInsets.zero,
+                                avatar: CircleAvatar(backgroundColor: Colors.transparent, child: Text('📰')),
+                                label: Text('Haber Gurusu', style: TextStyle(fontSize: 10, color: Colors.white)),
+                                backgroundColor: Color(0xFF0F172A),
+                              ),
+                              Chip(
+                                labelPadding: EdgeInsets.zero,
+                                avatar: CircleAvatar(backgroundColor: Colors.transparent, child: Text('🦉')),
+                                label: Text('Gece Kuşu', style: TextStyle(fontSize: 10, color: Colors.white)),
+                                backgroundColor: Color(0xFF0F172A),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
                     // Roles / Claims Section Card
                     Container(
@@ -257,8 +468,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         await authProvider.logout();
                       },
                     ),
+                    const SizedBox(height: 12),
+
+                    // Delete Account Button (GDPR)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFEF4444),
+                        side: const BorderSide(color: Color(0xFFEF4444)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => _showDeleteAccountDialog(context),
+                      icon: const Icon(Icons.delete_forever_outlined),
+                      label: const Text('Hesabımı Sil (GDPR)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildStatColumn(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 10)),
+      ],
     );
   }
 

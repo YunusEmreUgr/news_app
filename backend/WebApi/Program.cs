@@ -270,7 +270,14 @@ public class Program
                 }
             });
 
-            app.UseCors("AllowSpecificOrigins");
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseCors(policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+            }
+            else
+            {
+                app.UseCors("AllowSpecificOrigins");
+            }
             app.UseRateLimiter();
 
             app.UseAuthentication();

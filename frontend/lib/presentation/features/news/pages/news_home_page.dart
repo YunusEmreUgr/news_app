@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:frontend_template/presentation/providers/news_provider.dart';
 import 'package:frontend_template/presentation/providers/auth_provider.dart';
 import 'package:frontend_template/data/models/news/article_model.dart';
+import '../../../../core/widgets/skeleton_loader.dart';
 import 'article_detail_page.dart';
 import 'bookmarks_page.dart';
 import 'publish_news_page.dart';
@@ -95,78 +96,110 @@ class _NewsHomePageState extends State<NewsHomePage> {
             ),
         ],
       ),
-      body: newsProvider.isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFEF4444)))
-          : RefreshIndicator(
-              onRefresh: () => newsProvider.initNews(),
-              color: const Color(0xFFEF4444),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Search Bar
-                    _buildSearchBar(newsProvider),
-
-                    // Breaking News Ticker
-                    if (newsProvider.breakingNews.isNotEmpty)
-                      _buildBreakingNewsTicker(newsProvider.breakingNews),
-
-                    // Featured Carousel
-                    if (newsProvider.featuredNews.isNotEmpty)
-                      _buildFeaturedSection(newsProvider.featuredNews),
-
-                    // Category Filter Chips
-                    _buildCategoryFilter(newsProvider),
-
-                    // Articles Section Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Column(
+        children: [
+          if (newsProvider.isOffline)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFD97706),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.wifi_off_outlined, color: Colors.white, size: 16),
+                  SizedBox(width: 8),
+                  Text(
+                    'Çevrimdışı Mod - Önbellekten Okunuyor',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: newsProvider.isLoading
+                ? SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 10),
+                        SkeletonLoader.categories(),
+                        SkeletonLoader.headline(),
+                        SkeletonLoader.newsList(),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => newsProvider.initNews(),
+                    color: const Color(0xFFEF4444),
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            newsProvider.selectedCategory?.name ?? 'En Son Haberler',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                          // Search Bar
+                          _buildSearchBar(newsProvider),
+
+                          // Breaking News Ticker
+                          if (newsProvider.breakingNews.isNotEmpty)
+                            _buildBreakingNewsTicker(newsProvider.breakingNews),
+
+                          // Featured Carousel
+                          if (newsProvider.featuredNews.isNotEmpty)
+                            _buildFeaturedSection(newsProvider.featuredNews),
+
+                          // Category Filter Chips
+                          _buildCategoryFilter(newsProvider),
+
+                          // Articles Section Header
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  newsProvider.selectedCategory?.name ?? 'En Son Haberler',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${newsProvider.articles.length} Haber',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                ),
+                              ],
                             ),
                           ),
-                          Text(
-                            '${newsProvider.articles.length} Haber',
-                            style: const TextStyle(color: Colors.white54, fontSize: 12),
-                          ),
+
+                          // Articles List
+                          if (newsProvider.articles.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(32.0),
+                              child: Center(
+                                child: Text(
+                                  'Bu kategoride henüz haber bulunmuyor.',
+                                  style: TextStyle(color: Colors.white54),
+                                ),
+                              ),
+                            )
+                          else
+                            ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: newsProvider.articles.length,
+                              itemBuilder: (context, index) {
+                                final article = newsProvider.articles[index];
+                                return _buildArticleCard(context, article, newsProvider);
+                              },
+                            ),
+                          const SizedBox(height: 30),
                         ],
                       ),
                     ),
-
-                    // Articles List
-                    if (newsProvider.articles.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: Center(
-                          child: Text(
-                            'Bu kategoride henüz haber bulunmuyor.',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ),
-                      )
-                    else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: newsProvider.articles.length,
-                        itemBuilder: (context, index) {
-                          final article = newsProvider.articles[index];
-                          return _buildArticleCard(context, article, newsProvider);
-                        },
-                      ),
-                    const SizedBox(height: 30),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: authProvider.canPublish
           ? FloatingActionButton.extended(
               backgroundColor: const Color(0xFFEF4444),
@@ -439,7 +472,23 @@ class _NewsHomePageState extends State<NewsHomePage> {
                           color: isBookmarked ? const Color(0xFFEF4444) : Colors.white38,
                           size: 20,
                         ),
-                        onPressed: () => provider.toggleBookmark(article),
+                        onPressed: () {
+                          final authProvider = context.read<AuthProvider>();
+                          if (!authProvider.isAuthenticated) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('Haberleri favorilere eklemek için Giriş yapmalısınız.'),
+                                action: SnackBarAction(
+                                  label: 'Giriş Yap',
+                                  textColor: const Color(0xFFEF4444),
+                                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          provider.toggleBookmark(article);
+                        },
                       ),
                     ],
                   ),

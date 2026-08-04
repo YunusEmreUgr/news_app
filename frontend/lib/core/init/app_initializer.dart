@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import '../config/app_config.dart';
 import '../errors/global_error_handler.dart';
 import '../storage/cache_storage.dart';
@@ -15,6 +16,8 @@ class AppInitializer {
     AppConfig.init(environment: environment, useMockData: useMockData);
     GlobalErrorHandler.init();
     await CacheStorage.init();
+    await initializeDateFormatting('tr_TR', null);
+    await initializeDateFormatting('en_US', null);
     ServiceLocator.setup(navigatorKey);
     AppLogger.i('App initialized in [${environment.name}] mode (MockData: $useMockData)', tag: 'APP_INIT');
   }

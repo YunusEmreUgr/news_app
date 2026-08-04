@@ -67,4 +67,36 @@ class ArticleModel {
       'publishedAt': publishedAt.toIso8601String(),
     };
   }
+
+  ArticleModel copyWith({
+    int? id,
+    String? title,
+    String? summary,
+    String? content,
+    String? coverImageUrl,
+    int? categoryId,
+    String? authorName,
+    int? viewCount,
+    int? likeCount,
+    bool? isBreaking,
+    bool? isFeatured,
+    DateTime? publishedAt,
+    CategoryModel? category,
+  }) {
+    return ArticleModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      summary: summary ?? this.summary,
+      content: content ?? this.content,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      categoryId: categoryId ?? this.categoryId,
+      authorName: authorName ?? this.authorName,
+      viewCount: viewCount ?? this.viewCount,
+      likeCount: likeCount ?? this.likeCount,
+      isBreaking: isBreaking ?? this.isBreaking,
+      isFeatured: isFeatured ?? this.isFeatured,
+      publishedAt: publishedAt ?? this.publishedAt,
+      category: category ?? this.category,
+    );
+  }
 }

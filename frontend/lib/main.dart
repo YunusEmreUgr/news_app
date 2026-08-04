@@ -8,7 +8,6 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/news_provider.dart';
-import 'presentation/providers/product_provider.dart';
 import 'presentation/providers/user_provider.dart';
 import 'presentation/navigation/app_router.dart';
 
@@ -24,7 +23,6 @@ void main() async {
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => NewsProvider()),
-        ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
       ],
       child: const EnterpriseApp(),
@@ -38,6 +36,7 @@ class EnterpriseApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final localeProvider = context.watch<LocaleProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
 
     return MaterialApp(
       navigatorKey: navigatorKey,
@@ -54,9 +53,9 @@ class EnterpriseApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: themeProvider.themeMode,
       initialRoute: '/',
       routes: AppRouter.routes,
     );

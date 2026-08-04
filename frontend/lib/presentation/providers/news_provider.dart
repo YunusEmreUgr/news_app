@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/init/service_locator.dart';
 import '../../data/datasources/news_remote_data_source.dart';
 import '../../data/models/news/article_model.dart';
@@ -19,6 +21,9 @@ class NewsProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSearching = false;
   String _errorMessage = '';
+  
+  bool _isOfflineSimulated = false;
+  bool _isOffline = false;
 
   List<CategoryModel> get categories => _categories;
   List<ArticleModel> get articles => _articles;
@@ -30,6 +35,8 @@ class NewsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isSearching => _isSearching;
   String get errorMessage => _errorMessage;
+  bool get isOfflineSimulated => _isOfflineSimulated;
+  bool get isOffline => _isOffline;
 
   /// Dynamic userId from AuthProvider — set externally after login
   int? _currentUserId;
@@ -56,9 +63,24 @@ class NewsProvider extends ChangeNotifier {
   Future<void> initNews() async {
     _isLoading = true;
     _errorMessage = '';
+    _isOffline = false;
     notifyListeners();
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      _isOfflineSimulated = prefs.getBool('simulateOfflineMode') ?? false;
+
+      if (_isOfflineSimulated) {
+        _isOffline = true;
+        final cached = await _loadFromCache();
+        _isLoading = false;
+        if (!cached) {
+          _errorMessage = 'Çevrimdışı mod simüle edildi ancak önbellek bulunamadı.';
+        }
+        notifyListeners();
+        return;
+      }
+
       // Load categories, articles, breaking, featured in parallel
       final results = await Future.wait([
         _newsDataSource.getCategories(),
@@ -82,8 +104,15 @@ class NewsProvider extends ChangeNotifier {
       } else {
         _bookmarkedArticles = [];
       }
+
+      // Veriler başarıyla geldi, yerel önbelleğe kaydet
+      await _saveToCache();
     } catch (e) {
-      _errorMessage = 'Haberler yüklenirken bir hata oluştu: $e';
+      _isOffline = true;
+      final cached = await _loadFromCache();
+      if (!cached) {
+        _errorMessage = 'Haberler yüklenirken hata oluştu ve çevrimdışı önbellek bulunamadı: $e';
+      }
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -94,6 +123,23 @@ class NewsProvider extends ChangeNotifier {
     _selectedCategory = category;
     _isLoading = true;
     notifyListeners();
+
+    if (_isOffline) {
+      final prefs = await SharedPreferences.getInstance();
+      final artStr = prefs.getString('cached_articles');
+      if (artStr != null) {
+        final List<dynamic> artJson = jsonDecode(artStr);
+        final allArticles = artJson.map((json) => ArticleModel.fromJson(json)).toList();
+        if (category == null) {
+          _articles = allArticles;
+        } else {
+          _articles = allArticles.where((a) => a.categoryId == category.id).toList();
+        }
+      }
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
 
     try {
       if (category == null) {
@@ -157,11 +203,37 @@ class NewsProvider extends ChangeNotifier {
   /// Increment article view count
   Future<void> incrementViewCount(int articleId) async {
     await _newsDataSource.incrementViewCount(articleId);
+    _updateLocalViewCount(articleId);
   }
 
   /// Increment article like count  
   Future<void> incrementLikeCount(int articleId) async {
     await _newsDataSource.incrementLikeCount(articleId);
+    _updateLocalLikeCount(articleId);
+  }
+
+  void _updateLocalViewCount(int articleId) {
+    bool updated = false;
+    for (var list in [_articles, _breakingNews, _featuredNews, _bookmarkedArticles]) {
+      final index = list.indexWhere((a) => a.id == articleId);
+      if (index != -1) {
+        list[index] = list[index].copyWith(viewCount: list[index].viewCount + 1);
+        updated = true;
+      }
+    }
+    if (updated) notifyListeners();
+  }
+
+  void _updateLocalLikeCount(int articleId) {
+    bool updated = false;
+    for (var list in [_articles, _breakingNews, _featuredNews, _bookmarkedArticles]) {
+      final index = list.indexWhere((a) => a.id == articleId);
+      if (index != -1) {
+        list[index] = list[index].copyWith(likeCount: list[index].likeCount + 1);
+        updated = true;
+      }
+    }
+    if (updated) notifyListeners();
   }
 
   Future<bool> publishNews({
@@ -196,5 +268,52 @@ class NewsProvider extends ChangeNotifier {
     }
 
     return success;
+  }
+
+  Future<void> _saveToCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_categories', jsonEncode(_categories.map((c) => c.toJson()).toList()));
+      await prefs.setString('cached_articles', jsonEncode(_articles.map((a) => a.toJson()).toList()));
+      await prefs.setString('cached_breakingNews', jsonEncode(_breakingNews.map((a) => a.toJson()).toList()));
+      await prefs.setString('cached_featuredNews', jsonEncode(_featuredNews.map((a) => a.toJson()).toList()));
+    } catch (e) {
+      debugPrint('Önbellek kaydetme hatası: $e');
+    }
+  }
+
+  Future<bool> _loadFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final catStr = prefs.getString('cached_categories');
+      final artStr = prefs.getString('cached_articles');
+      final brkStr = prefs.getString('cached_breakingNews');
+      final ftrStr = prefs.getString('cached_featuredNews');
+
+      if (catStr != null && artStr != null) {
+        final List<dynamic> catJson = jsonDecode(catStr);
+        final List<dynamic> artJson = jsonDecode(artStr);
+        final List<dynamic> brkJson = brkStr != null ? jsonDecode(brkStr) : [];
+        final List<dynamic> ftrJson = ftrStr != null ? jsonDecode(ftrStr) : [];
+
+        _categories = catJson.map((json) => CategoryModel.fromJson(json)).toList();
+        _articles = artJson.map((json) => ArticleModel.fromJson(json)).toList();
+        _breakingNews = brkJson.map((json) => ArticleModel.fromJson(json)).toList();
+        _featuredNews = ftrJson.map((json) => ArticleModel.fromJson(json)).toList();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Önbellek okuma hatası: $e');
+      return false;
+    }
+  }
+
+  Future<void> toggleOfflineSimulation(bool value) async {
+    _isOfflineSimulated = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('simulateOfflineMode', value);
+    notifyListeners();
+    await initNews();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/init/service_locator.dart';
 import '../../data/models/user/user_model.dart';
+import '../../data/datasources/user_remote_data_source.dart';
 import '../../domain/usecases/user/get_user_profile_usecase.dart';
 import '../../domain/usecases/user/update_user_profile_usecase.dart';
 import '../../domain/usecases/user/change_password_usecase.dart';
@@ -55,6 +56,32 @@ class UserProvider extends ChangeNotifier {
       return true;
     } else {
       _errorMessage = result.failureOrNull?.message ?? 'Şifre değiştirilemedi.';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    _state = UserState.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final success = await getIt<UserRemoteDataSource>().deleteAccount();
+      if (success) {
+        _profile = null;
+        _state = UserState.initial;
+        notifyListeners();
+        return true;
+      } else {
+        _state = UserState.error;
+        _errorMessage = 'Hesap silinemedi.';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _state = UserState.error;
+      _errorMessage = e.toString();
       notifyListeners();
       return false;
     }
