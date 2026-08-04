@@ -27,10 +27,10 @@ class AppConfig {
     switch (environment) {
       case AppEnvironment.dev:
         final defaultDevUrl = kIsWeb
-            ? 'http://localhost:5000/api'
+            ? 'http://localhost:5212/api'
             : (defaultTargetPlatform == TargetPlatform.android
-                ? 'http://10.0.2.2:5000/api'
-                : 'http://localhost:5000/api');
+                ? 'http://10.0.2.2:5212/api'
+                : 'http://localhost:5212/api');
 
         _instance = AppConfig._internal(
           environment: AppEnvironment.dev,
@@ -45,7 +45,7 @@ class AppConfig {
       case AppEnvironment.staging:
         _instance = AppConfig._internal(
           environment: AppEnvironment.staging,
-          apiBaseUrl: 'http://localhost:5000/api',
+          apiBaseUrl: 'http://localhost:5212/api',
           appTitle: 'Haberim (Staging)',
           enableLogging: true,
           useMockData: useMockData,
@@ -56,7 +56,7 @@ class AppConfig {
       case AppEnvironment.prod:
         _instance = AppConfig._internal(
           environment: AppEnvironment.prod,
-          apiBaseUrl: 'http://localhost:5000/api',
+          apiBaseUrl: 'http://localhost:5212/api',
           appTitle: 'Haberim',
           enableLogging: false,
           useMockData: false,

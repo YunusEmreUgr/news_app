@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend_template/presentation/providers/news_provider.dart';
 import 'package:frontend_template/presentation/providers/auth_provider.dart';
+import 'package:frontend_template/presentation/providers/user_provider.dart';
 import 'package:frontend_template/data/models/news/article_model.dart';
 import 'package:intl/intl.dart';
 
@@ -32,6 +33,20 @@ class _ArticleDetailPageState extends State<ArticleDetailPage> {
       final newsProvider = context.read<NewsProvider>();
       newsProvider.loadComments(widget.article.id);
       newsProvider.incrementViewCount(widget.article.id);
+
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.isAuthenticated) {
+        final userProvider = context.read<UserProvider>();
+        if (userProvider.profile != null) {
+          _nameController.text = '${userProvider.profile!.firstName} ${userProvider.profile!.lastName}';
+        } else {
+          userProvider.fetchProfile().then((_) {
+            if (userProvider.profile != null) {
+              _nameController.text = '${userProvider.profile!.firstName} ${userProvider.profile!.lastName}';
+            }
+          });
+        }
+      }
     });
   }
 

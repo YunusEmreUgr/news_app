@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/localization/locale_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -16,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
+    final localeProvider = context.watch<LocaleProvider>();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -93,9 +95,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.language_outlined, color: Colors.white),
                   title: const Text('Uygulama Dili', style: TextStyle(color: Colors.white)),
-                  subtitle: const Text('Türkçe (TR)', style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  subtitle: Text(localeProvider.locale.languageCode == 'tr' ? 'Türkçe (TR)' : 'English (EN)', style: const TextStyle(color: Colors.white38, fontSize: 11)),
                   trailing: const Icon(Icons.chevron_right, color: Colors.white38),
-                  onTap: () {},
+                  onTap: () {
+                    localeProvider.toggleLocale();
+                  },
                 ),
                 const Divider(color: Colors.white10, height: 1),
                 ListTile(

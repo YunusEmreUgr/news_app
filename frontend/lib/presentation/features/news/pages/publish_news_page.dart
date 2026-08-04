@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:frontend_template/presentation/providers/news_provider.dart';
+import 'package:frontend_template/presentation/providers/user_provider.dart';
 
 class PublishNewsPage extends StatefulWidget {
   const PublishNewsPage({super.key});
@@ -20,6 +21,17 @@ class _PublishNewsPageState extends State<PublishNewsPage> {
   int _selectedCategoryId = 1;
   bool _isBreaking = false;
   bool _isFeatured = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.profile != null) {
+        _authorController.text = '${userProvider.profile!.firstName} ${userProvider.profile!.lastName}';
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -36,7 +36,21 @@ class NewsProvider extends ChangeNotifier {
   int? get currentUserId => _currentUserId;
 
   void setCurrentUserId(int? userId) {
-    _currentUserId = userId;
+    if (_currentUserId != userId) {
+      _currentUserId = userId;
+      if (userId != null) {
+        _newsDataSource.getBookmarks(userId).then((bookmarks) {
+          _bookmarkedArticles = bookmarks;
+          notifyListeners();
+        }).catchError((_) {
+          _bookmarkedArticles = [];
+          notifyListeners();
+        });
+      } else {
+        _bookmarkedArticles = [];
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> initNews() async {

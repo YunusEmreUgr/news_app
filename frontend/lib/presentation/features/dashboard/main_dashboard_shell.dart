@@ -39,6 +39,13 @@ class _MainDashboardShellState extends State<MainDashboardShell> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<NewsProvider>().setCurrentUserId(authProvider.userId);
+      }
+    });
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
